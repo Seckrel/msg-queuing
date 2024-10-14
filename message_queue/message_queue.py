@@ -1,19 +1,23 @@
 from redis import Redis
+from fastapi import WebSocket
 import asyncio
-from timeit import default_timer
+
 
 class MessageQueue:
     def __init__(
         self,
         redis_client: Redis,
-        queue_name="message_1",
+        websocket: WebSocket,
+        channel_name="message_1",
         worker=None,
         verbose=False,
         *args,
         **kwargs,
     ) -> None:
         self.redis_client = redis_client
-        self.queue_name = queue_name
+        self.ws = websocket
+        self.channel_name = channel_name
+        self.pubsub = self.redis_client.pubsub()
 
         self.worker = worker
         self.verbose = verbose
@@ -21,32 +25,45 @@ class MessageQueue:
         self.kwargs = kwargs
 
     def qsize(self):
-        return self.redis_client.llen(self.queue_name)
+        return self.redis_client.llen(self.channel_name)
+
+    def unsubscribe(self):
+        """UnSubscribe channel from redis pubsub"""
+        self.pubsub.unsubscribe(self.channel_name)
 
     async def produce(self, message: str):
         """Pushes a message to the Redis queue."""
-        self.redis_client.rpush(self.queue_name, message)
+        # self.redis_client.rpush(self.channel_name, message)
+        self.redis_client.publish(self.channel_name, message)
 
         if self.verbose:
-            print(f"Message '{message}' added to queue {self.queue_name}")
+            print(f"Message '{message}' published to {self.channel_name}")
 
     async def consume(self):
         """Waits for a message from the Redis queue."""
-        s = default_timer()
-        item = self.redis_client.blpop(self.queue_name, timeout=5)
-        print("time", default_timer() - s)
-        if self.verbose:
-            print(f"Queue Size {self.qsize()}")
+        self.pubsub.subscribe(self.channel_name)
 
-        if not item:
-            return None
+        try:
+            while True:
+                message = self.pubsub.get_message(ignore_subscribe_messages=True)
 
-        _, message = item
+                if message:
+                    data = message["data"]
 
-        if self.worker:
-            message = self.worker(message)
+                    if self.worker:
+                        data = self.worker(data)
 
-        if self.verbose:
-            print(f"Processed {message}")
+                    if self.verbose:
+                        print(f"Processed {data}")
 
-        return message
+                    await self.ws.send_text(data)
+                await asyncio.sleep(
+                    0.1
+                )  # Sleep briefly to yield control and avoid busy-waiting
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Error in consuming messages: {e}")
+
+        finally:
+            self.unsubscribe()

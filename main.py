@@ -70,12 +70,22 @@ async def message_queuing(
     await websocket.accept()
 
     # Create a MessageQueue instance
-    message_queue = MessageQueue(redis_client, worker=Worker, verbose=True)
+    message_queue = MessageQueue(redis_client, websocket, worker=Worker, verbose=True)
 
     # Start the consumer in a separate task
-    asyncio.create_task(Consumer(websocket, message_queue))
+    asyncio.create_task(message_queue.consume())
 
     # Producer loop for WebSocket incoming messages
-    while True:
-        data = await websocket.receive_text()
-        await Producer(data, message_queue)
+    try:
+        while True:
+            # Receive text data from WebSocket client
+            data = await websocket.receive_text()
+
+            # Publish data to redis pub
+            await message_queue.produce(data)
+
+    except Exception as e:
+        print(f"WebSocket connection error: {e}")
+    finally:
+        print("socket closed")
+        await websocket.close()
