@@ -2,11 +2,11 @@
 
 ## Table of Content
 - [Introduction](#Introduction)
-    - [Key Feature](##Key-Feature)
-    - [How it Works](##How-it-Works)
+    - [Key Feature](#Key-Feature)
+    - [How it Works](#How-it-Works)
 - [How to Run](#How-to-Run)
-    - [Requirements](##Requirements)
-    - [Initial Setup](##Initial-Setup)
+    - [Requirements](#Requirements)
+    - [Initial Setup](#Initial-Setup)
 - [Run Project](#Run-Project)
 
 # Introduction
