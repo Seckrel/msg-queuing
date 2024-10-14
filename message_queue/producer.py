@@ -1,10 +1,6 @@
-from .queue import QUEUE_NAME
-from redis import Redis
+from .message_queue import MessageQueue
 
 
-async def Producer(message: str, queue: Redis):
-    try:
-        queue.lpush(QUEUE_NAME, message)
-    except:
-        import traceback
-        traceback.print_exc()
+async def Producer(data: str, message_queue: MessageQueue):
+    """Adds messages to the Redis queue."""
+    await message_queue.produce(data)

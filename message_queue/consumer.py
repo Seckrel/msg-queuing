@@ -1,21 +1,13 @@
-from .worker import Worker
 from fastapi import WebSocket
 import asyncio
-from redis import Redis
+from .message_queue import MessageQueue
 
 
-async def Consumer(websocket: WebSocket, queue: Redis):
-    """
-    Consumes items from the message queue
-
-    Args:
-        websocket (WebSocket): wb connection to return message
-        queue (Redis): redis client
-    """
+async def Consumer(websocket: WebSocket, message_queue: MessageQueue):
+    """Continuously consumes messages from the Redis queue and sends them to the websocket."""
     while True:
-        output = await Worker(queue)
+        output = await message_queue.consume()
         if output:
             await websocket.send_text(f"Message text was: {output}")
-
         else:
-            await asyncio.sleep(1)
+            await asyncio.sleep(.5)

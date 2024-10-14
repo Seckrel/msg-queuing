@@ -5,6 +5,9 @@ from .message_queue.consumer import Consumer
 import asyncio
 import redis
 from .config.load_redis import pool
+from .message_queue.message_queue import MessageQueue
+from .message_queue.worker import Worker
+
 
 app = FastAPI()
 
@@ -54,7 +57,9 @@ async def get():
 
 
 @app.websocket("/ws")
-async def message_queuing(websocket: WebSocket, queue: redis.Redis = Depends(get_redis)):
+async def message_queuing(
+    websocket: WebSocket, redis_client: redis.Redis = Depends(get_redis)
+):
     """
     Message queuing End-point
 
@@ -63,7 +68,14 @@ async def message_queuing(websocket: WebSocket, queue: redis.Redis = Depends(get
         queue (redis.Redis, optional): connected redis client. Defaults to Depends(get_redis).
     """
     await websocket.accept()
-    asyncio.create_task(Consumer(websocket, queue))
+
+    # Create a MessageQueue instance
+    message_queue = MessageQueue(redis_client, worker=Worker, verbose=True)
+
+    # Start the consumer in a separate task
+    asyncio.create_task(Consumer(websocket, message_queue))
+
+    # Producer loop for WebSocket incoming messages
     while True:
         data = await websocket.receive_text()
-        await Producer(data, queue)
+        await Producer(data, message_queue)

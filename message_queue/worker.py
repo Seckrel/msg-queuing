@@ -1,27 +1,12 @@
-import asyncio
-from .queue import QUEUE_NAME
-from redis import Redis
-
-
-async def Worker(queue: Redis):
+def Worker(item: str):
     """
-    Perform actions/tasks on queued items
+    Simple Example for worker that processes item from queue.
+    In this case, uppercase worker
 
     Args:
-        queue (Redis): redis connected client
+        item (str): pop-ed item from redis queue
 
     Returns:
-        str|None: returns processed string or None if queue is empty
+        str: Retuns upper-cased str
     """
-    print(f"Queue Size {queue.llen(QUEUE_NAME)}")
-
-    item = queue.blpop(QUEUE_NAME, timeout=5)
-    if item:
-        # processing | remove this and add actual task to perfom on the queued item
-        await asyncio.sleep(3)
-
-        _, message = item
-        print(f"Processed {message}")
-        return message
-
-    return None
+    return item.upper()
